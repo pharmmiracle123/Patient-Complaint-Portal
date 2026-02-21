@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Medical System Login</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    /* Glassmorphism */
+    .overlay {
+      background: rgba(255, 255, 255, 0.25);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+    }
+
+    /* Typewriter */
+    .typewriter {
+      border-right: .15em solid #4B5563;
+      white-space: nowrap;
+      overflow: hidden;
+      display: inline-block;
+    }
+
+    /* Fade animation */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .fade-in {
+      animation: fadeIn 1s ease-out;
+    }
+
+    /* Spinner */
+    .spinner {
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-top: 3px solid #4F46E5;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      animation: spin 1s linear infinite;
+      display: inline-block;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+
+<body class="relative flex items-center justify-center h-screen bg-gray-900 text-gray-800">
+
+  <!-- Gradient Background -->
+  <div class="absolute inset-0 bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#4f46e5] opacity-95"></div>
+
+  <!-- Login Card -->
+  <div class="overlay relative z-10 p-10 rounded-2xl shadow-2xl w-[400px] text-center fade-in">
+
+    <!-- Logo -->
+    <img src="hospital-logo.png" alt="Hospital Logo" class="w-20 h-20 mx-auto mb-4 drop-shadow-lg">
+
+    <!-- Welcome -->
+    <h1 id="welcomeText" class="typewriter text-lg font-semibold text-gray-900 mb-6"></h1>
+
+    <h2 class="text-2xl font-bold mb-6 text-gray-900">
+      Hospital Management System
+    </h2>
+
+    <p class="text-sm text-gray-800 mb-6">
+      Secure access for Doctors, Nurses, and Hospital Administrators.
+      Please sign in using your authorized Google account.
+    </p>
+
+    <!-- Google Sign In -->
+    <button id="googleLogin"
+      class="w-full flex items-center justify-center gap-3 bg-[#4F46E5] text-white px-4 py-2 rounded-lg shadow-lg hover:shadow-xl hover:scale-105 transition transform duration-200">
+      <img src="https://www.svgrepo.com/show/355037/google.svg" class="w-5 h-5" alt="Google">
+      Continue with Google
+    </button>
+
+    <!-- Status -->
+    <div id="status" class="mt-4 text-sm text-gray-900"></div>
+    <div id="spinner" class="mt-4 hidden">
+      <span class="spinner"></span>
+      <span class="text-sm text-gray-900">Authenticating...</span>
+    </div>
+
+    <!-- Footer -->
+    <p class="mt-8 text-xs text-gray-700">
+      © 2026 Real-Time Hospital System | Powered by Firebase
+    </p>
+
+  </div>
+
+  <!-- Firebase Script -->
+  <script type="module">
+
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+    import {
+      getAuth,
+      GoogleAuthProvider,
+      signInWithPopup,
+      onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+
+    const firebaseConfig = {
+apiKey: "AIzaSyBzuQuY_9BSGrhQmN2zuH7bgS8nUOBZRnA",
+authDomain: "pts-bscht.firebaseapp.com",
+databaseURL: "https://pts-bscht-default-rtdb.firebaseio.com/",
+projectId: "pts-bscht",
+storageBucket: "pts-bscht.firebasestorage.app",
+messagingSenderId: "860500545291",
+appId: "1:860500545291:web:60df69992bcaddcb0bdc0e"
+};
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const provider = new GoogleAuthProvider();
+
+    const googleLoginBtn = document.getElementById("googleLogin");
+    const statusEl = document.getElementById("status");
+    const spinnerEl = document.getElementById("spinner");
+
+    // Google Login
+    googleLoginBtn.addEventListener("click", async () => {
+      try {
+        statusEl.textContent = "";
+        spinnerEl.classList.remove("hidden");
+
+        const result = await signInWithPopup(auth, provider);
+        const user = result.user;
+
+        spinnerEl.classList.add("hidden");
+        statusEl.textContent = "✅ Login successful. Redirecting to dashboard...";
+
+        setTimeout(() => {
+          window.location.href = "index.html";
+        }, 1500);
+
+      } catch (error) {
+        spinnerEl.classList.add("hidden");
+        console.error(error);
+        statusEl.textContent = "❌ Authentication failed: " + error.message;
+      }
+    });
+
+    // Auto Redirect if already logged in
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        window.location.href = "index.html";
+      }
+    });
+
+    // Typewriter Messages (Medical Context)
+    const messages = [
+      "🏥 Welcome to the Hospital System",
+      "👨‍⚕ Secure Access for Doctors",
+      "👩‍⚕ Secure Access for Nurses",
+      "📊 Real-Time Patient Management"
+    ];
+
+    let messageIndex = 0;
+    let charIndex = 0;
+    const welcomeEl = document.getElementById("welcomeText");
+
+    function typeMessage() {
+      if (charIndex < messages[messageIndex].length) {
+        welcomeEl.textContent += messages[messageIndex].charAt(charIndex);
+        charIndex++;
+        setTimeout(typeMessage, 70);
+      } else {
+        setTimeout(eraseMessage, 2000);
+      }
+    }
+
+    function eraseMessage() {
+      if (charIndex > 0) {
+        welcomeEl.textContent = messages[messageIndex].substring(0, charIndex - 1);
+        charIndex--;
+        setTimeout(eraseMessage, 40);
+      } else {
+        messageIndex = (messageIndex + 1) % messages.length;
+        setTimeout(typeMessage, 400);
+      }
+    }
+
+    typeMessage();
+
+  </script>
+
+</body>
+</html>

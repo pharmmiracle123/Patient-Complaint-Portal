@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Hospital Complaint System</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="min-h-screen bg-gradient-to-br from-emerald-900 via-teal-800 to-cyan-700 flex flex-col items-center justify-center p-6">
+
+  <!-- Logo & Header -->
+<div class="text-center mb-8">
+  <div class="relative w-32 h-32 mx-auto mb-4 rounded-full p-1 bg-gradient-to-r from-teal-400 via-cyan-500 to-indigo-500 animate-spin-slow">
+    <div class="absolute inset-0 rounded-full bg-gray-900 flex items-center justify-center shadow-lg">
+      <img src="/file_00000000e3ec720a94ef966fdb1f385d.png" alt="Hospital Logo" class="w-24 h-24 rounded-full border-4 border-gray-800 shadow-xl">
+    </div>
+  </div>
+  <h1 class="text-3xl font-bold text-white">Hospital Complaint Portal</h1>
+  <p class="text-white/80">Patients submit complaints → Doctors view securely. Note: Do not share your Code with anyone</p>
+</div>
+
+  <!-- Patient Complaint Form -->
+  <div class="bg-white/20 backdrop-blur-lg border border-white/30 shadow-2xl rounded-2xl w-full max-w-xl p-8 mb-6">
+    <h2 class="text-xl font-bold mb-4 text-white">Submit Complaint (Patient)</h2>
+    <form id="complaintForm" class="space-y-4">
+      <select id="hospitalSelect" class="w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-400" required>
+        <option value="">Select Hospital</option>
+      </select>
+
+      <input type="text" id="name" placeholder="Full Name" class="w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-400" required>
+      <input type="number" id="age" placeholder="Age" class="w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-400" required>
+      <select id="sex" class="w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-400" required>
+        <option value="">Select Sex</option>
+        <option value="Male">Male</option>
+        <option value="Female">Female</option>
+      </select>
+      <input type="tel" id="phone" placeholder="Phone Number" class="w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-400" required>
+      <textarea id="complaint" rows="4" placeholder="Describe your complaint..." class="w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-400" required></textarea>
+      <button type="submit" class="w-full bg-cyan-500 hover:bg-cyan-600 text-white py-2 rounded-lg font-semibold transition duration-300">
+        Submit Complaint
+      </button>
+    </form>
+    <div id="status" class="mt-4 text-center text-white font-medium"></div>
+  </div>
+
+  <!-- Doctor Access Section -->
+<div class="bg-white/20 backdrop-blur-lg border border-white/30 shadow-2xl rounded-2xl w-full max-w-xl p-8 mb-6">
+  <h2 class="text-xl font-bold mb-4 text-white">Doctor / Admin Access</h2>
+  <form id="doctorForm" class="flex flex-col gap-3 mb-4">
+    <input type="text" id="doctorHospitalCode" placeholder="Enter Hospital Code" class="w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400" required>
+    <input type="text" id="doctorPatientCode" placeholder="Enter Patient Code" class="w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400" required>
+    <button type="submit" class="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-2 rounded-lg font-semibold transition duration-300">
+      Access Complaint
+    </button>
+  </form>
+  
+  <div id="doctorComplaintDetail" class="text-white/90"></div>
+</div>
+
+  <!-- Logout -->
+  <button id="logoutBtn" class="mt-6 w-full max-w-xl bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg font-semibold transition duration-300">
+    Logout
+  </button>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+import { getDatabase, ref, set, get } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+
+// Firebase config
+const firebaseConfig = {
+  apiKey: "AIzaSyBzuQuY_9BSGrhQmN2zuH7bgS8nUOBZRnA",
+  authDomain: "pts-bscht.firebaseapp.com",
+  databaseURL: "https://pts-bscht-default-rtdb.firebaseio.com/",
+  projectId: "pts-bscht",
+  storageBucket: "pts-bscht.firebasestorage.app",
+  messagingSenderId: "860500545291",
+  appId: "1:860500545291:web:60df69992bcaddcb0bdc0e"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getDatabase(app);
+
+// DOM elements
+const complaintForm = document.getElementById("complaintForm");
+const statusEl = document.getElementById("status");
+const logoutBtn = document.getElementById("logoutBtn");
+const doctorForm = document.getElementById("doctorForm");
+const doctorComplaintDetail = document.getElementById("doctorComplaintDetail");
+const hospitalSelect = document.getElementById("hospitalSelect");
+
+// 🔹 Front-end hospital list with codes (not stored in Firebase)
+const hospitals = [
+  { id: "HOSP1", name: "Federal Medical Centre, Yenagoa", code: "YEN123" },
+  { id: "HOSP2", name: "Niger Delta University Teaching Hospital, Okolobiri", code: "OKO456" },
+  { id: "HOSP3", name: "General Hospital, Sagbama", code: "SAG789" },
+  { id: "HOSP4", name: "Alfa Hospital, Yenagoa", code: "ALF234" },
+  { id: "HOSP5", name: "St. Luke Hospital, Ogbia", code: "STL567" },
+  { id: "HOSP6", name: "Amadi Hospital, Brass", code: "AMA890" },
+  { id: "HOSP7", name: "Bayelsa Specialist Clinic, Yenagoa", code: "BSP321" },
+  { id: "HOSP8", name: "Divine Hospital, Nembe", code: "DIV654" },
+  { id: "HOSP9", name: "Faith Hospital, Oporoma", code: "FAI987" },
+  { id: "HOSP10", name: "Royal Hospital, Kaiama", code: "ROY432" },
+];
+
+// Populate hospital dropdown
+hospitals.forEach(h => {
+  const opt = document.createElement("option");
+  opt.value = h.id;
+  opt.textContent = h.name;
+  hospitalSelect.appendChild(opt);
+});
+
+// 🔹 Check patient login
+onAuthStateChanged(auth, user => {
+  if (!user) window.location.href = "login.html";
+});
+
+// 🔹 Logout
+logoutBtn.addEventListener("click", async () => {
+  await signOut(auth);
+  window.location.href = "login.html";
+});
+
+// 🔹 Generate patient code
+function generatePatientCode() {
+  return "HSP-" + Math.floor(1000 + Math.random() * 9000) + "-" + Date.now().toString().slice(-4);
+}
+
+// 🔹 Submit complaint
+complaintForm.addEventListener("submit", async e => {
+  e.preventDefault();
+  const user = auth.currentUser;
+  if (!user) return alert("You must be logged in!");
+
+  const hospitalId = hospitalSelect.value;
+  const name = document.getElementById("name").value;
+  const age = document.getElementById("age").value;
+  const sex = document.getElementById("sex").value;
+  const phone = document.getElementById("phone").value;
+  const complaint = document.getElementById("complaint").value;
+
+  if (!hospitalId) return alert("Select a hospital!");
+
+  const patientCode = generatePatientCode();
+
+  try {
+    await set(ref(db, `complaints/${hospitalId}/${patientCode}`), {
+      userEmail: user.email,
+      name, age, sex, phone,
+      complaint,
+      patientCode,
+      status: "Pending",
+      timestamp: Date.now()
+    });
+
+    statusEl.innerHTML = `✅ Complaint submitted!<br>Patient Code: <span class="font-bold text-yellow-300">${patientCode}</span>`;
+    complaintForm.reset();
+  } catch (err) {
+    statusEl.textContent = "❌ Error: " + err.message;
+  }
+});
+
+// Doctor/Admin Access
+doctorForm.addEventListener("submit", async e => {
+  e.preventDefault();
+  const hospitalCodeInput = document.getElementById("doctorHospitalCode").value.trim();
+  const patientCodeInput = document.getElementById("doctorPatientCode").value.trim();
+  doctorComplaintDetail.innerHTML = "";
+  
+  if (!hospitalCodeInput || !patientCodeInput) return alert("Enter both hospital code and patient code!");
+  
+  // Hospital mapping (frontend only)
+  const hospitalId = hospitals.find(h => h.code === hospitalCodeInput)?.id;
+  if (!hospitalId) return alert("Invalid hospital code!");
+  
+  // Fetch patient complaint
+  const complaintSnap = await get(ref(db, `complaints/${hospitalId}/${patientCodeInput}`));
+  if (!complaintSnap.exists()) {
+    doctorComplaintDetail.textContent = "❌ No complaint found for this patient code in this hospital.";
+    return;
+  }
+  
+  const complaint = complaintSnap.val();
+  
+  // Display editable fields
+  doctorComplaintDetail.innerHTML = `
+    <h3 class="font-bold text-xl text-yellow-300 mb-2">Patient Complaint</h3>
+    <p><strong>Name:</strong> ${complaint.name}</p>
+    <p><strong>Age:</strong> ${complaint.age}</p>
+    <p><strong>Sex:</strong> ${complaint.sex}</p>
+    <p><strong>Phone:</strong> ${complaint.phone}</p>
+    <textarea id="doctorComplaintEdit" rows="4" class="w-full px-3 py-2 rounded-lg text-black mb-2">${complaint.complaint}</textarea>
+    <label class="block mb-2 mt-2 font-semibold">Status:</label>
+    <select id="doctorStatusUpdate" class="w-full px-3 py-2 rounded-lg text-black mb-3">
+      <option value="Pending" ${complaint.status === "Pending" ? "selected" : ""}>Pending</option>
+      <option value="In Progress" ${complaint.status === "In Progress" ? "selected" : ""}>In Progress</option>
+      <option value="Discharged" ${complaint.status === "Discharged" ? "selected" : ""}>Discharged</option>
+      <option value="Follow-up Required" ${complaint.status === "Follow-up Required" ? "selected" : ""}>Follow-up Required</option>
+      <option value="Urgent" ${complaint.status === "Urgent" ? "selected" : ""}>Urgent</option>
+    </select>
+    <button id="saveComplaintBtn" class="w-full bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg font-semibold transition duration-300">Save Changes</button>
+  `;
+  
+  // Save updated complaint
+  document.getElementById("saveComplaintBtn").addEventListener("click", async () => {
+    const updatedComplaint = document.getElementById("doctorComplaintEdit").value.trim();
+    const updatedStatus = document.getElementById("doctorStatusUpdate").value;
+    
+    if (!updatedComplaint) return alert("Complaint cannot be empty!");
+    
+    await set(ref(db, `complaints/${hospitalId}/${patientCodeInput}`), {
+      ...complaint,
+      complaint: updatedComplaint,
+      status: updatedStatus,
+      lastUpdated: Date.now()
+    });
+    
+    alert("✅ Complaint updated successfully!");
+  });
+});
+</script>
+</body>
+</html>
